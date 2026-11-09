@@ -1,30 +1,54 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:smartkasir_app/main.dart';
+import 'package:smartkasir_app/pages/dashboard_page.dart';
+import 'package:smartkasir_app/pages/main_navigation_page.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('SmartKasirApp renders SplashScreenPage', (WidgetTester tester) async {
+    await tester.pumpWidget(const SmartKasirApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Verify splash screen content
+    expect(find.text('SmartKasir'), findsWidgets);
+    expect(find.text('Aplikasi Kasir Point of Sale Digital'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Replace widget to cleanly invoke dispose() and cancel splash timer
+    await tester.pumpWidget(const SizedBox());
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('MainNavigationPage displays navigation bar and default page',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MainNavigationPage(),
+      ),
+    );
+
+    // Verify bottom navigation items
+    expect(find.text('Beranda'), findsOneWidget);
+    expect(find.text('Kasir'), findsOneWidget);
+    expect(find.text('Riwayat'), findsOneWidget);
+    expect(find.text('Toko'), findsOneWidget);
+
+    // Verify initial page is DashboardPage
+    expect(find.text('Total Penjualan Hari Ini'), findsOneWidget);
+  });
+
+  testWidgets('DashboardPage renders category chips and title',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DashboardPage(),
+      ),
+    );
+
+    // Verify dashboard elements
+    expect(find.text('SmartKasir'), findsWidgets);
+    expect(find.text('Total Penjualan Hari Ini'), findsOneWidget);
+    expect(find.text('Semua'), findsOneWidget);
+    expect(find.text('Makanan'), findsOneWidget);
+    expect(find.text('Minuman'), findsOneWidget);
+    expect(find.text('Snack'), findsOneWidget);
   });
 }
