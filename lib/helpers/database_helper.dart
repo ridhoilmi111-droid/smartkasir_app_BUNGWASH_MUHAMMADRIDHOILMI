@@ -4,9 +4,9 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 import '../models/produk.dart';
+import '../models/karyawan.dart';
 
 class DatabaseHelper {
-  // Singleton: satu instance untuk seluruh aplikasi
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
   DatabaseHelper._init();
@@ -18,17 +18,26 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
-    // Chrome (Flutter Web) memakai factory khusus web
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWeb;
-      return await openDatabase(filePath, version: 1, onCreate: _createDB);
+      return await openDatabase(
+        filePath,
+        version: 2,
+        onCreate: _createDB,
+        onUpgrade: _onUpgradeDB,
+      );
     }
-    // Android
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _onUpgradeDB,
+    );
   }
 
+  // Database baru: buat 2 tabel + data awal
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE produk (
@@ -45,13 +54,67 @@ class DatabaseHelper {
       )
     ''');
 
-    // Data awal (seeding)
     for (final produk in produkAwalSQLite) {
       await db.insert('produk', produk.toMap());
     }
+
+    await _buatTabelKaryawan(db);
   }
 
-  // CREATE
+  // Database lama (versi 1): tambahkan tabel karyawan
+  Future<void> _onUpgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _buatTabelKaryawan(db);
+    }
+  }
+
+  Future<void> _buatTabelKaryawan(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS karyawan (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nama_karyawan TEXT NOT NULL,
+        pin TEXT NOT NULL,
+        peran TEXT NOT NULL
+      )
+    ''');
+    await db.rawInsert('''
+      INSERT INTO karyawan (nama_karyawan, pin, peran)
+      VALUES ('Ahmad Kasir', '1234', 'Kasir')
+    ''');
+    await db.rawInsert('''
+      INSERT INTO karyawan (nama_karyawan, pin, peran)
+      VALUES ('Siti Supervisor', '8888', 'Manajer')
+    ''');
+  }
+
+  // ===== CRUD KARYAWAN =====
+  Future<int> insertKaryawan(Karyawan karyawan) async {
+    final db = await instance.database;
+    return await db.insert('karyawan', karyawan.toMap());
+  }
+
+  Future<List<Karyawan>> getAllKaryawan() async {
+    final db = await instance.database;
+    final result = await db.query('karyawan', orderBy: 'id ASC');
+    return result.map((json) => Karyawan.fromMap(json)).toList();
+  }
+
+  Future<int> updateKaryawan(Karyawan karyawan) async {
+    final db = await instance.database;
+    return await db.update(
+      'karyawan',
+      karyawan.toMap(),
+      where: 'id = ?',
+      whereArgs: [karyawan.id],
+    );
+  }
+
+  Future<int> deleteKaryawan(int id) async {
+    final db = await instance.database;
+    return await db.delete('karyawan', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ===== CRUD PRODUK (MINGGU 11) =====
   Future<int> insertProduk(Produk produk) async {
     final db = await instance.database;
     return await db.insert(
@@ -61,19 +124,15 @@ class DatabaseHelper {
     );
   }
 
-  // READ semua
   Future<List<Produk>> getAllProduk() async {
     final db = await instance.database;
     final result = await db.query('produk', orderBy: 'id DESC');
     return result.map((json) => Produk.fromMap(json)).toList();
   }
 
-  // READ per kategori
   Future<List<Produk>> getProdukByKategori(String kategori) async {
     final db = await instance.database;
-    if (kategori == 'Semua') {
-      return await getAllProduk();
-    }
+    if (kategori == 'Semua') return await getAllProduk();
     final result = await db.query(
       'produk',
       where: 'kategori = ?',
@@ -83,7 +142,6 @@ class DatabaseHelper {
     return result.map((json) => Produk.fromMap(json)).toList();
   }
 
-  // SEARCH (LIKE)
   Future<List<Produk>> searchProduk(String keyword) async {
     final db = await instance.database;
     final result = await db.query(
@@ -95,7 +153,6 @@ class DatabaseHelper {
     return result.map((json) => Produk.fromMap(json)).toList();
   }
 
-  // UPDATE
   Future<int> updateProduk(Produk produk) async {
     final db = await instance.database;
     return await db.update(
@@ -106,7 +163,6 @@ class DatabaseHelper {
     );
   }
 
-  // DELETE
   Future<int> deleteProduk(int id) async {
     final db = await instance.database;
     return await db.delete('produk', where: 'id = ?', whereArgs: [id]);

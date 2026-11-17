@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'dashboard_page.dart';
+import 'profil_toko_page.dart';
 
 class MainNavigationPage extends StatefulWidget {
   const MainNavigationPage({super.key});
@@ -22,22 +23,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     ),
     Center(
       child: Text(
-        'Menu 3: Riwayat Penjualan & Laporan (Modul M12)',
+        'Menu 3: Riwayat Penjualan & Laporan (Modul M14)',
         style: TextStyle(fontSize: 16),
       ),
     ),
-    Center(
-      child: Text(
-        'Menu 4: Profil Toko & Pengaturan (Modul M12)',
-        style: TextStyle(fontSize: 16),
-      ),
-    ),
+    ProfilTokoPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
       body: _pages[_currentIndex],
       bottomNavigationBar: Container(
@@ -59,7 +53,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
-          selectedItemColor: cs.primary,
+          selectedItemColor: const Color(0xFF1E3A8A),
           unselectedItemColor: Colors.grey.shade500,
           selectedLabelStyle: const TextStyle(
             fontWeight: FontWeight.bold,
