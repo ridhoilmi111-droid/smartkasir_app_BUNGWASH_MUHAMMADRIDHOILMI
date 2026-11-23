@@ -5,6 +5,7 @@ import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 import '../models/produk.dart';
 import '../models/karyawan.dart';
+import '../models/pelanggan.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -22,7 +23,7 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(
         filePath,
-        version: 2,
+        version: 3,
         onCreate: _createDB,
         onUpgrade: _onUpgradeDB,
       );
@@ -31,13 +32,13 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _onUpgradeDB,
     );
   }
 
-  // Database baru: buat 2 tabel + data awal
+  // Database baru: buat 3 tabel + data awal
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE produk (
@@ -53,18 +54,21 @@ class DatabaseHelper {
         created_at TEXT
       )
     ''');
-
     for (final produk in produkAwalSQLite) {
       await db.insert('produk', produk.toMap());
     }
 
     await _buatTabelKaryawan(db);
+    await _buatTabelPelanggan(db);
   }
 
-  // Database lama (versi 1): tambahkan tabel karyawan
+  // Database lama: tambahkan tabel yang belum ada
   Future<void> _onUpgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _buatTabelKaryawan(db);
+    }
+    if (oldVersion < 3) {
+      await _buatTabelPelanggan(db);
     }
   }
 
@@ -87,7 +91,85 @@ class DatabaseHelper {
     ''');
   }
 
-  // ===== CRUD KARYAWAN =====
+  Future<void> _buatTabelPelanggan(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pelanggan (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kode_pelanggan TEXT UNIQUE NOT NULL,
+        nama_pelanggan TEXT NOT NULL,
+        nomor_wa TEXT NOT NULL,
+        alamat TEXT NOT NULL,
+        latitude REAL,
+        longitude REAL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+    await db.insert('pelanggan', {
+      'kode_pelanggan': 'CUST-001',
+      'nama_pelanggan': 'Warung Bu Siti',
+      'nomor_wa': '081234567890',
+      'alamat': 'Jl. Hasan Basri No. 12, Banjarmasin',
+      'latitude': -3.298280,
+      'longitude': 114.588820,
+      'created_at': '2026-11-01 09:00:00',
+    });
+    await db.insert('pelanggan', {
+      'kode_pelanggan': 'CUST-002',
+      'nama_pelanggan': 'Budi Santoso',
+      'nomor_wa': '085712345678',
+      'alamat': 'Jl. Kayu Tangi II No. 45, Banjarmasin',
+      'latitude': -3.295410,
+      'longitude': 114.582150,
+      'created_at': '2026-11-02 10:30:00',
+    });
+  }
+
+  // ===== CRUD PELANGGAN (MINGGU 13) =====
+  Future<int> insertPelanggan(Pelanggan pelanggan) async {
+    final db = await instance.database;
+    return await db.insert('pelanggan', pelanggan.toMap());
+  }
+
+  Future<List<Pelanggan>> getAllPelanggan() async {
+    final db = await instance.database;
+    final result = await db.query('pelanggan', orderBy: 'id DESC');
+    return result.map((json) => Pelanggan.fromMap(json)).toList();
+  }
+
+  Future<List<Pelanggan>> searchPelanggan(String keyword) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'pelanggan',
+      where:
+          'nama_pelanggan LIKE ? OR nomor_wa LIKE ? OR kode_pelanggan LIKE ?',
+      whereArgs: ['%$keyword%', '%$keyword%', '%$keyword%'],
+      orderBy: 'id DESC',
+    );
+    return result.map((json) => Pelanggan.fromMap(json)).toList();
+  }
+
+  Future<int> updatePelanggan(Pelanggan pelanggan) async {
+    final db = await instance.database;
+    return await db.update(
+      'pelanggan',
+      pelanggan.toMap(),
+      where: 'id = ?',
+      whereArgs: [pelanggan.id],
+    );
+  }
+
+  Future<int> deletePelanggan(int id) async {
+    final db = await instance.database;
+    return await db.delete('pelanggan', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> countPelanggan() async {
+    final db = await instance.database;
+    final result = await db.rawQuery('SELECT COUNT(*) as total FROM pelanggan');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // ===== CRUD KARYAWAN (MINGGU 12) =====
   Future<int> insertKaryawan(Karyawan karyawan) async {
     final db = await instance.database;
     return await db.insert('karyawan', karyawan.toMap());
@@ -166,5 +248,11 @@ class DatabaseHelper {
   Future<int> deleteProduk(int id) async {
     final db = await instance.database;
     return await db.delete('produk', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> countProduk() async {
+    final db = await instance.database;
+    final result = await db.rawQuery('SELECT COUNT(*) as total FROM produk');
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 }
